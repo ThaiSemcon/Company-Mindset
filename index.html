@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>แบบทดสอบพนักงาน / Staff Quiz</title>
+  <style>
+    :root{
+      --ink:#0f172a; --muted:#475569; --line:#e2e8f0; --soft:#f8fafc;
+      --brand:#1d4ed8; --good:#16a34a; --warn:#f59e0b; --bad:#dc2626;
+    }
+    *{box-sizing:border-box}
+    body{font-family:"Segoe UI", Arial, sans-serif;background:#f6f7fb;margin:0;color:var(--ink)}
+    .container{max-width:960px;margin:40px auto;padding:24px}
+    .card{background:#fff;border-radius:16px;padding:28px;box-shadow:0 4px 18px rgba(0,0,0,.08);border:1px solid var(--line)}
+    h1{margin:0 0 8px;text-align:center;color:#1e3a8a}
+    .score-guide{font-size:14px;text-align:center;margin:8px 0 20px;color:#444}
+    label{display:block;margin:12px 0 6px;font-weight:700}
+    input[type=text]{width:100%;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px}
+    .header-img{width:100%;max-height:220px;object-fit:cover;border-radius:14px;margin-bottom:16px}
+
+    /* Question list */
+    .qcard{border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;background:#fff;margin:16px 0}
+    .qtitle{font-weight:800;color:#1d4ed8;margin-bottom:12px}
+    .opts{display:grid;gap:8px}
+    .opt{display:flex;gap:10px;align-items:flex-start;background:#ffffff;border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;cursor:pointer}
+    .opt:hover{background:#f1f5f9}
+    .opt input{margin-top:3px}
+    .qcard.correct{border-color:#b6e3c8;background:#f6fff8}
+    .qcard.incorrect{border-color:#f6c7c7;background:#fff6f6}
+    .opt.correct{border-color:#86efac}
+    .opt.incorrect{border-color:#fecaca}
+    .answerline{margin-top:10px;font-size:13px}
+    .badge-mini{display:inline-block;padding:4px 10px;border-radius:999px;color:#fff;font-weight:800}
+    .badge-mini.good{background:var(--good)} .badge-mini.bad{background:var(--bad)}
+    .explain{margin-top:8px;color:var(--muted);font-size:13px;line-height:1.45}
+
+    /* Buttons & modal */
+    .actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:18px}
+    button{cursor:pointer;padding:12px 20px;border:none;border-radius:10px;font-weight:800}
+    .primary{background:#2563eb;color:#fff} .ghost{background:#e5e7eb}
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:50}
+    .modal-card{width:min(92vw,520px);background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,.25);border:1px solid var(--line)}
+    .score{font-size:48px;font-weight:900;margin:6px 0}
+    .rank{display:inline-block;padding:8px 14px;border-radius:999px;color:#fff;font-weight:900}
+    .rank.ex{background:var(--good)} .rank.ni{background:var(--warn)} .rank.rt{background:var(--bad)}
+
+    /* Cover Page */
+    #cover{position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;padding:24px}
+    #cover img{max-width:700px;width:92%;border-radius:18px;margin-bottom:20px;border:1px solid var(--line)}
+    #cover h1{margin:0 0 6px}
+    #cover p{color:#475569;margin:0 0 22px}
+  </style>
+
+  <!-- CONNECT TO YOUR APPS SCRIPT -->
+  <script>
+    // Your deployed Apps Script Web App URL:
+    const ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwN9OE0D_2rKId44Ir3WNXi_hz5IZGxJGjiZI8Dy-2tnklVMPHcA2O_UCcSX3jRMNk8rA/exec";
+    // Token must match SHARED_TOKEN in your Apps Script (change if you set a different one)
+    const ENDPOINT_TOKEN = "quiz-secret-123";
+  </script>
+</head>
+<body>
+  <!-- Cover Page -->
+  <div id="cover">
+    <img src="Page.jpg" alt="Cover Banner">
+    <h1>แบบทดสอบพนักงาน / Staff Quiz</h1>
+    <p>Work Discipline & Company Mindset</p>
+    <button class="primary" onclick="startQuiz()">Start Quiz</button>
+  </div>
+
+  <!-- Quiz -->
+  <div class="container" id="quizContainer" style="display:none;">
+    <div class="card">
+      <img src="Page.jpg" alt="Quiz Banner" class="header-img">
+      <h1>แบบทดสอบพนักงาน<br/>Staff Quiz: Work Discipline & Mindset</h1>
+      <p class="score-guide">เกณฑ์คะแนน / Rank: <b>10–12</b> = ดีมาก (Excellent) • <b>7–9</b> = ควรปรับปรุง (Needs Improvement) • <b>&lt;7</b> = ต้องอบรมเพิ่ม (Re-training)</p>
+
+      <label>รหัสพนักงาน / Staff Code</label>
+      <input id="staffCode" type="text" placeholder="2025079">
+      <label>ชื่อ-นามสกุล / Name</label>
+      <input id="staffName" type="text" placeholder="Somrak Niyom">
+      <label>โครงการ / Project</label>
+      <input id="staffProject" type="text" placeholder="24-2392 NEXT01-FIT">
+
+      <div id="quiz"></div>
+
+      <div class="actions">
+        <button class="primary" id="submitBtn">ส่งคำตอบ / Submit</button>
+        <button class="ghost" id="resetBtn" type="button">ล้างข้อมูล / Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result Modal -->
+  <div id="modal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h2>ผลลัพธ์ / Result</h2>
+      <div id="modalInfo" style="margin-bottom:10px;color:#555"></div>
+      <div id="score" class="score">—</div>
+      <div id="rank" class="rank">—</div>
+      <div id="feedback" style="margin-top:10px;color:#333"></div>
+      <div class="actions"><button class="primary" onclick="closeModal()">ปิด / Close</button></div>
+    </div>
+  </div>
+
+  <script>
+    // ====== All 12 Questions (ไทย / English) with explanations ======
+    const QUESTIONS = [
+      { q:'ข้อใดคือพฤติกรรมที่สะท้อนถึงวินัยการทำงานที่ดี? / Which behavior reflects good work discipline?',
+        options:[
+          'มาทำงานตรงเวลาและเตรียมพร้อม (Arriving on time and prepared)',
+          'มาสายบ่อยแต่ทำงานเสร็จ (Frequently late but still finish work)',
+          'ลาป่วยโดยไม่แจ้งหัวหน้างาน (Taking sick leave without notifying supervisor)',
+          'เล่นโทรศัพท์ระหว่างประชุม (Using phone during meetings)'],
+        correct:0,
+        explain:'การตรงต่อเวลาและเตรียมพร้อมเป็นพื้นฐานของวินัยในการทำงาน • Punctuality & preparation are core to discipline.' },
+
+      { q:'Mindset ที่ถูกต้องในการทำงานคือ? / The correct mindset at work is…',
+        options:[
+          'ทำงานเมื่อถูกสั่งเท่านั้น (Working only when instructed)',
+          'มุ่งทำงานให้เสร็จเร็วที่สุด (Focusing only on speed)',
+          'เห็นคุณค่างานทุกงานและทำด้วยความรับผิดชอบ (Value every task & act responsibly)',
+          'รอให้เพื่อนแก้ปัญหาแทน (Waiting for colleagues to solve problems)'],
+        correct:2,
+        explain:'Mindset ที่ดีคือรับผิดชอบและเห็นคุณค่าในงานทุกชิ้น • Responsible mindset values every task.' },
+
+      { q:'หากต้องการทำ OT ต้องทำอย่างไร? / If you wish to do OT, what must be done?',
+        options:[
+          'ทำต่อได้เลยถ้างานยังไม่เสร็จ (Continue if unfinished)',
+          'ขออนุมัติจากหัวหน้างานล่วงหน้า (Obtain prior supervisor approval)',
+          'ทำเฉพาะวันหยุด (Work only on weekends)',
+          'ขออนุญาตเพื่อนร่วมงานก็พอ (Colleague permission is enough)'],
+        correct:1,
+        explain:'OT ต้องได้รับอนุมัติล่วงหน้าเพื่อจัดการความปลอดภัยและงบประมาณ • Prior approval is required.' },
+
+      { q:'ข้อใดสะท้อนข้อกำหนดการแต่งกายของบริษัท? / Which reflects the company dress code?',
+        options:[
+          'เสื้อยืดกางเกงยีนส์ตามสะดวก (T-shirt & jeans if convenient)',
+          'แต่งกายสุภาพหรือยูนิฟอร์มตลอดเวลางาน (Formal attire/uniform during work hours)',
+          'ใส่ยูนิฟอร์มเฉพาะเวลาประชุม (Uniform only for meetings)',
+          'ใส่อะไรก็ได้ถ้างานเสร็จ (Any attire if work done)'],
+        correct:1,
+        explain:'การแต่งกายสุภาพหรือยูนิฟอร์มช่วยสร้างภาพลักษณ์และความปลอดภัย • Proper attire supports image & safety.' },
+
+      { q:'5ส หมายถึงข้อใด? / What does 5S stand for?',
+        options:[
+          'สะอาด สะใจ สวยงาม สะสม สะดวก (Cleanliness, Satisfaction, Beauty, Collecting, Convenience)',
+          'สะสาง สะดวก สะอาด สุขลักษณะ สร้างนิสัย (Sort, Set in Order, Shine, Standardize, Sustain)',
+          'สะอาด สดชื่น สุขใจ สงบ สง่างาม (Clean, Refreshing, Happiness, Calmness, Dignity)',
+          'สะอาด สวยงาม สมบูรณ์ สมานฉันท์ สะสม (Clean, Beautiful, Complete, Harmony, Collecting)'],
+        correct:1,
+        explain:'5ส = สะสาง สะดวก สะอาด สุขลักษณะ สร้างนิสัย • Improves efficiency & safety.' },
+
+      { q:'สามารถออกไปทำธุระส่วนตัวระหว่างเวลางานได้ หากกลับมาทันเวลา / You may leave for personal errands during working hours if you return on time.',
+        options:['ถูก / True','ผิด / False'],
+        correct:1,
+        explain:'ต้องได้รับอนุญาตตามระเบียบงาน • Leaving requires permission; work hours are for company duties.' },
+
+      { q:'ความตรงต่อเวลาเป็นส่วนหนึ่งของวินัยการทำงาน / Punctuality is part of work discipline.',
+        options:['ถูก / True','ผิด / False'],
+        correct:0,
+        explain:'การมาทันเวลาและไม่กลับก่อนเป็นวินัยพื้นฐาน • Timeliness reflects reliability.' },
+
+      { q:'การตรวจสอบเครื่องมือเป็นประจำไม่ใช่หน้าที่ของพนักงานทั่วไป / Regular tool inspection is not employees’ duty.',
+        options:['ถูก / True','ผิด / False'],
+        correct:1,
+        explain:'พนักงานควรตรวจสอบอุปกรณ์เบื้องต้นเพื่อความปลอดภัย • Routine checks reduce risk & downtime.' },
+
+      { q:'การรักษา 5ส เป็นเพียงแนวคิด ไม่จำเป็นต้องทำจริง / 5S doesn’t need real practice.',
+        options:['ถูก / True','ผิด / False'],
+        correct:1,
+        explain:'ต้องปฏิบัติจริงอย่างสม่ำเสมอจึงเห็นผล • 5S works only when practiced.' },
+
+      { q:'วินัยและความปลอดภัยเป็นหน้าที่ของทุกคน / Discipline & safety are everyone’s responsibility.',
+        options:['ถูก / True','ผิด / False'],
+        correct:0,
+        explain:'ทุกคนต้องมีส่วนร่วม ไม่ใช่เฉพาะหัวหน้างาน • Shared responsibility lowers risk.' },
+
+      { q:'เมื่อเห็นเพื่อนดู YouTube ในเวลางาน ควรทำอย่างไร? / "When you see a colleague watching YouTube during work hours. What should you do?',
+        options:[
+          'ไม่สนใจ / Ignore',
+          'เตือนว่าเป็นการละเมิดวินัยและอาจถูกรายงาน / Remind it violates discipline and may be reported',
+          'เล่นด้วยกัน / Join in',
+          'แอบถ่ายแล้วลงโซเชียล / Record & post on social media'],
+        correct:1,
+        explain:'การเตือนอย่างสุภาพช่วยรักษาวินัยและมาตรฐานองค์กร • Courteous reminder supports policies.' },
+
+      { q:'อุปกรณ์ในพื้นที่ทำงานเริ่มชำรุด ควรทำอย่างไร? / Equipment deteriorates—what should you do?',
+        options:[
+          'ใช้งานต่อไป / Continue using',
+          'แจ้งหัวหน้างานหรือฝ่ายที่เกี่ยวข้องทันที / Notify supervisor immediately',
+          'รอให้เพื่อนเจอก่อน / Wait for colleague',
+          'เก็บไว้เงียบ ๆ กลัวถูกตำหนิ / Keep silent'],
+        correct:1,
+        explain:'ต้องรายงานทันทีเพื่อลดความเสี่ยงด้านความปลอดภัย • Immediate reporting mitigates risk.' },
+    ];
+
+    // ===== Render =====
+    const quizEl = document.getElementById('quiz');
+    function renderQuiz(){
+      quizEl.innerHTML='';
+      QUESTIONS.forEach((item,idx)=>{
+        const card=document.createElement('div'); card.className='qcard';
+        card.innerHTML = `
+          <div class="qtitle">Q${idx+1}) ${item.q}</div>
+          <div class="opts">
+            ${item.options.map((opt,i)=>{
+              const id=`q${idx}_${i}`;
+              return `<label class="opt" for="${id}">
+                        <input type="radio" id="${id}" name="q${idx}" value="${i}"> ${opt}
+                      </label>`;
+            }).join('')}
+          </div>`;
+        quizEl.appendChild(card);
+      });
+    }
+    renderQuiz();
+
+    // ==== Helper: ensure all 12 questions are answered ====
+    function allQuestionsAnswered(){
+      for(let i=0;i<QUESTIONS.length;i++){
+        if(!document.querySelector(`input[name="q${i}"]:checked`)){
+          return i; // return first unanswered index
+        }
+      }
+      return -1; // all answered
+    }
+
+    // ===== Scoring & full answer capture =====
+    function computeScore(){
+      let score=0; const details=[];
+      QUESTIONS.forEach((item,idx)=>{
+        const chosenEl=document.querySelector(`input[name=q${idx}]:checked`);
+        const chosen=chosenEl ? Number(chosenEl.value) : null;
+        const correct=item.correct;
+        if(chosen===correct) score++;
+        details.push({
+          qNo: idx+1,
+          question: item.q,
+          chosenIndex: chosen,
+          chosenText: chosen!=null ? item.options[chosen] : null,
+          correctIndex: correct,
+          correctText: item.options[correct],
+          isCorrect: chosen===correct,
+          explain: item.explain
+        });
+      });
+      return { score, details };
+    }
+
+    function getFeedback(score){
+      if(score>=10) return { rank:'ดีมาก / Excellent', cls:'ex',
+        text:'แสดงถึงวินัยและ Mindset ที่ถูกต้อง เป็นแบบอย่างได้ • Demonstrates the right discipline & mindset.' };
+      if(score>=7) return { rank:'ควรปรับปรุง / Needs Improvement', cls:'ni',
+        text:'มีความเข้าใจระดับหนึ่ง แต่ควรปรับปรุงเพิ่มเติม • Fair understanding; improve via training.' };
+      return { rank:'ต้องอบรมเพิ่มเติม / Re-training Required', cls:'rt',
+        text:'คะแนนต่ำ ต้องอบรมซ้ำและติดตามโดยหัวหน้างาน • Low score; re-training required.' };
+    }
+
+    // ===== Submit: validate, save to Sheet, show popup, show review =====
+    document.getElementById('submitBtn').addEventListener('click', async ()=>{
+      const code=document.getElementById('staffCode').value.trim();
+      const name=document.getElementById('staffName').value.trim();
+      const project=document.getElementById('staffProject').value.trim();
+      if(!code||!name||!project){
+        alert('กรุณากรอกข้อมูลพนักงานให้ครบถ้วน (Please fill Staff Code, Name, and Project).');
+        (document.getElementById('staffCode').value?'':document.getElementById('staffCode')).focus();
+        return;
+      }
+
+      // Require ALL questions answered
+      const missingIndex = allQuestionsAnswered();
+      if(missingIndex !== -1){
+        alert(`กรุณาตอบคำถามให้ครบทุกข้อ (Please answer all questions).\nยังไม่ได้ตอบ: ข้อที่ ${missingIndex+1}`);
+        // scroll to first missing and focus its first radio
+        const groupTop = document.querySelector(`input[name="q${missingIndex}"]`).closest('.qcard').offsetTop;
+        window.scrollTo({ top: groupTop - 80, behavior: 'smooth' });
+        const firstRadio = document.querySelector(`input[name="q${missingIndex}"]`);
+        if(firstRadio) firstRadio.focus();
+        return;
+      }
+
+      const { score, details } = computeScore();
+      const fb = getFeedback(score);
+
+      // Save to Google Sheet (Apps Script)
+      let saved=false, err='';
+      try{
+        const res = await fetch(ENDPOINT_URL,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            token: ENDPOINT_TOKEN,
+            staff_code: code,
+            staff_name: name,
+            project: project,
+            score: score,
+            total: QUESTIONS.length,
+            rank: fb.rank,
+            answers: details
+          })
+        });
+        const data = await res.json();
+        saved = !!(data && data.ok);
+        if(!saved) err = (data && data.error) || 'Unknown error';
+      }catch(e){ err=e.message; }
+
+      // Popup
+      document.getElementById('modalInfo').textContent = `${name} (${code}) • ${project}`;
+      document.getElementById('score').textContent = `${score} / ${QUESTIONS.length}`;
+      const rankEl=document.getElementById('rank');
+      rankEl.textContent = fb.rank; rankEl.className = `rank ${fb.cls}`;
+      document.getElementById('feedback').textContent = fb.text + (saved ? '' : ` • (บันทึกไม่สำเร็จ: ${err})`);
+      document.getElementById('modal').style.display='flex';
+
+      // Render per-question review (correct/incorrect + explanation), lock inputs
+      renderReview(details);
+      document.querySelectorAll('input[type=radio]').forEach(el=>el.disabled=true);
+    });
+
+    function renderReview(details){
+      const nodes = Array.from(quizEl.children);
+      details.forEach((d,i)=>{
+        const card = nodes[i]; if(!card) return;
+        card.classList.remove('correct','incorrect');
+        card.classList.add(d.isCorrect ? 'correct' : 'incorrect');
+
+        const opts = card.querySelectorAll('.opt');
+        opts.forEach((optEl, idx)=>{
+          optEl.classList.remove('correct','incorrect');
+          if(idx===d.correctIndex) optEl.classList.add('correct');
+          if(d.chosenIndex!==null && idx===d.chosenIndex && !d.isCorrect) optEl.classList.add('incorrect');
+        });
+
+        let line = card.querySelector('.answerline');
+        if(!line){ line = document.createElement('div'); line.className='answerline'; card.appendChild(line); }
+        line.innerHTML = d.isCorrect
+          ? `<span class="badge-mini good">ถูกต้อง / Correct</span>`
+          : `<span class="badge-mini bad">ไม่ถูกต้อง / Incorrect</span> · คำตอบที่ถูก: <strong>${d.correctText}</strong>`;
+
+        let ex = card.querySelector('.explain');
+        if(!ex){ ex = document.createElement('div'); ex.className='explain'; card.appendChild(ex); }
+        ex.textContent = d.explain || '';
+      });
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', ()=>{
+      document.querySelectorAll('input[type=radio]').forEach(el=>{ el.checked=false; el.disabled=false; });
+      ['staffCode','staffName','staffProject'].forEach(id=>document.getElementById(id).value='');
+      // remove review
+      document.querySelectorAll('.qcard').forEach(c=>{
+        c.classList.remove('correct','incorrect');
+        const al=c.querySelector('.answerline'); if(al) al.remove();
+        const ex=c.querySelector('.explain'); if(ex) ex.remove();
+        c.querySelectorAll('.opt').forEach(o=>o.classList.remove('correct','incorrect'));
+      });
+      closeModal();
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+
+    function closeModal(){ document.getElementById('modal').style.display='none'; }
+    window.closeModal = closeModal;
+
+    function startQuiz(){
+      document.getElementById('cover').style.display='none';
+      document.getElementById('quizContainer').style.display='block';
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+    window.startQuiz = startQuiz;
+  </script>
+</body>
+</html>
